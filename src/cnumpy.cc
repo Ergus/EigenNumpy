@@ -73,7 +73,6 @@ cmatrix &cmatrix::operator=(const cmatrix &in){
     return *this;
     }
 
-
 ostream &operator<<(ostream &out,const cmatrix &in){
     for(int i=0;i<in.r;i++){
         const int idim=i*in.c;
@@ -85,3 +84,27 @@ ostream &operator<<(ostream &out,const cmatrix &in){
         }
     return out;
     }
+
+namespace py = pybind11;
+
+PYBIND11_PLUGIN(libcnumpy){
+
+py::module m("libcnumpy", "Mini numpy en C++");
+
+py::class_<cmatrix>(m,"cmatrix")
+    .def(py::init<>(),"Constructor por defecto")
+    .def(py::init<int,int,char>(),
+        "Constructor basico",        
+        py::arg("int"), py::arg("int"),
+        py::arg("char") ='0')
+    .def("__repr__",
+             [](const cmatrix &a){
+             stringstream out;
+             out<<a;
+             return out.str();
+             }         
+        );
+
+return m.ptr();
+}
+

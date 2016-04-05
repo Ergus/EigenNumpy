@@ -7,6 +7,9 @@
 #include <cstdlib>
 #include <cmath>
 
+#include "pybind11.h"
+#include <sstream>
+
 using namespace std;
 
 #define frand()((double)rand()/(RAND_MAX))
