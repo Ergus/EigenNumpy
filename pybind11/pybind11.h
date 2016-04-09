@@ -295,10 +295,17 @@ protected:
         int index = 0;
         /* Create a nice pydoc rec including all signatures and
            docstrings of the functions in the overload chain */
+        if (chain) {
+            // First a generic signature
+            signatures += rec->name;
+            signatures += "(*args, **kwargs)\n";
+            signatures += "Overloaded function.\n\n";
+        }
+        // Then specific overload signatures
         for (auto it = chain_start; it != nullptr; it = it->next) {
             if (chain)
                 signatures += std::to_string(++index) + ". ";
-            signatures += "Signature : ";
+            signatures += rec->name;
             signatures += it->signature;
             signatures += "\n";
             if (it->doc && strlen(it->doc) > 0) {
@@ -791,66 +798,65 @@ public:
 
     template <typename C, typename D, typename... Extra>
     class_ &def_readwrite(const char *name, D C::*pm, const Extra&... extra) {
-        cpp_function fget([pm](const C &c) -> const D &{ return c.*pm; },
-                          return_value_policy::reference_internal,
-                          is_method(*this), extra...),
-                     fset([pm](C &c, const D &value) { c.*pm = value; },
-                          is_method(*this), extra...);
-        def_property(name, fget, fset);
+        cpp_function fget([pm](const C &c) -> const D &{ return c.*pm; }, is_method(*this)),
+                     fset([pm](C &c, const D &value) { c.*pm = value; }, is_method(*this));
+        def_property(name, fget, fset, return_value_policy::reference_internal, extra...);
         return *this;
     }
 
     template <typename C, typename D, typename... Extra>
     class_ &def_readonly(const char *name, const D C::*pm, const Extra& ...extra) {
-        cpp_function fget([pm](const C &c) -> const D &{ return c.*pm; },
-                          return_value_policy::reference_internal,
-                          is_method(*this), extra...);
-        def_property_readonly(name, fget);
+        cpp_function fget([pm](const C &c) -> const D &{ return c.*pm; }, is_method(*this));
+        def_property_readonly(name, fget, return_value_policy::reference_internal, extra...);
         return *this;
     }
 
     template <typename D, typename... Extra>
     class_ &def_readwrite_static(const char *name, D *pm, const Extra& ...extra) {
-        cpp_function fget([pm](object) -> const D &{ return *pm; },
-                          return_value_policy::reference_internal, scope(*this), extra...),
-                     fset([pm](object, const D &value) { *pm = value; }, scope(*this), extra...);
-        def_property_static(name, fget, fset);
+        cpp_function fget([pm](object) -> const D &{ return *pm; }, scope(*this)),
+                     fset([pm](object, const D &value) { *pm = value; }, scope(*this));
+        def_property_static(name, fget, fset, return_value_policy::reference, extra...);
         return *this;
     }
 
     template <typename D, typename... Extra>
     class_ &def_readonly_static(const char *name, const D *pm, const Extra& ...extra) {
-        cpp_function fget([pm](object) -> const D &{ return *pm; },
-                          return_value_policy::reference_internal, scope(*this), extra...);
-        def_property_readonly_static(name, fget);
+        cpp_function fget([pm](object) -> const D &{ return *pm; }, scope(*this));
+        def_property_readonly_static(name, fget, return_value_policy::reference, extra...);
         return *this;
     }
 
-    class_ &def_property_readonly(const char *name, const cpp_function &fget, const char *doc = nullptr) {
-        def_property(name, fget, cpp_function(), doc);
+    template <typename... Extra>
+    class_ &def_property_readonly(const char *name, const cpp_function &fget, const Extra& ...extra) {
+        def_property(name, fget, cpp_function(), extra...);
         return *this;
     }
 
-    class_ &def_property_readonly_static(const char *name, const cpp_function &fget, const char *doc = nullptr) {
-        def_property_static(name, fget, cpp_function(), doc);
+    template <typename... Extra>
+    class_ &def_property_readonly_static(const char *name, const cpp_function &fget, const Extra& ...extra) {
+        def_property_static(name, fget, cpp_function(), extra...);
         return *this;
     }
 
-    class_ &def_property(const char *name, const cpp_function &fget, const cpp_function &fset, const char *doc = nullptr) {
-        object doc_obj = doc ? pybind11::str(doc) : (object) fget.attr("__doc__");
+    template <typename... Extra>
+    class_ &def_property(const char *name, const cpp_function &fget, const cpp_function &fset, const Extra& ...extra) {
+        return def_property_static(name, fget, fset, is_method(*this), extra...);
+    }
+
+    template <typename... Extra>
+    class_ &def_property_static(const char *name, const cpp_function &fget, const cpp_function &fset, const Extra& ...extra) {
+        auto rec_fget = get_function_record(fget), rec_fset = get_function_record(fset);
+        detail::process_attributes<Extra...>::init(extra..., rec_fget);
+        if (rec_fset)
+            detail::process_attributes<Extra...>::init(extra..., rec_fset);
+        pybind11::str doc_obj = pybind11::str(rec_fget->doc ? rec_fget->doc : "");
         object property(
             PyObject_CallFunctionObjArgs((PyObject *) &PyProperty_Type, fget.ptr() ? fget.ptr() : Py_None,
                                          fset.ptr() ? fset.ptr() : Py_None, Py_None, doc_obj.ptr(), nullptr), false);
-        attr(name) = property;
-        return *this;
-    }
-
-    class_ &def_property_static(const char *name, const cpp_function &fget, const cpp_function &fset, const char *doc = nullptr) {
-        object doc_obj = doc ? pybind11::str(doc) : (object) fget.attr("__doc__");
-        object property(
-            PyObject_CallFunctionObjArgs((PyObject *) &PyProperty_Type, fget.ptr() ? fget.ptr() : Py_None,
-                                         fset.ptr() ? fset.ptr() : Py_None, Py_None, doc_obj.ptr(), nullptr), false);
-        metaclass().attr(name) = property;
+        if (rec_fget->class_)
+            attr(name) = property;
+        else
+            metaclass().attr(name) = property;
         return *this;
     }
 
@@ -864,7 +870,7 @@ private:
     template <typename T>
     static void init_holder_helper(instance_type *inst, const holder_type * /* unused */, const std::enable_shared_from_this<T> * /* dummy */) {
         try {
-            new (&inst->holder) holder_type(inst->value->shared_from_this());
+            new (&inst->holder) holder_type(std::static_pointer_cast<type>(inst->value->shared_from_this()));
         } catch (const std::bad_weak_ptr &) {
             new (&inst->holder) holder_type(inst->value);
         }
@@ -903,6 +909,12 @@ private:
                 ::operator delete(inst->value);
         }
         generic_type::dealloc((detail::instance<void> *) inst);
+    }
+
+    static detail::function_record *get_function_record(handle h) {
+        h = detail::get_function(h);
+        return h ? (detail::function_record *) capsule(
+               PyCFunction_GetSelf(h.ptr()), true) : nullptr;
     }
 };
 

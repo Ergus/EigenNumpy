@@ -21,4 +21,6 @@ target_link_libraries(cnumpy ${PYTHON_LIBRARIES})
 add_executable(main.x main.cc)
 target_link_libraries(main.x cnumpy)
 
+# Python executable
 
+configure_file(${PROJECT_SOURCE_DIR}/main.py ${PROJECT_BINARY_DIR})

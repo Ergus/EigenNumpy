@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "pybind11.h"
+#include "operators.h"
 #include <sstream>
 
 using namespace std;
@@ -17,25 +18,32 @@ using namespace std;
 class cmatrix{
     public:
         cmatrix();
-        cmatrix(int rows, int cols, char fill='0');
-        cmatrix(const cmatrix&);
+        cmatrix(size_t rows, size_t cols,
+                char fill='0');
+        
+        cmatrix(const cmatrix &);
+        cmatrix(cmatrix &&);
+        
         ~cmatrix();
         
-        int rows(){return r;}
-        int cols(){return c;}
-        
+        size_t rows() const{return r;}
+        size_t cols() const{return c;}
+
+        cmatrix operator*(const cmatrix &in) const;
+        cmatrix operator*(double in) const;
+        friend cmatrix operator*(double a, const cmatrix &b);
+
         double* operator[](int row);
-        cmatrix operator*(const cmatrix &in);
-        cmatrix operator*(double in);
-        cmatrix &operator=(const cmatrix &in);
+        
+        cmatrix &operator=(const cmatrix &);
+        cmatrix &operator=(cmatrix &&);
+
+        friend ostream &operator<<(ostream &out,const cmatrix &in);
         
     private:
         double *data;
-        int r,c,full;
-        friend ostream &operator<<(ostream &out,const cmatrix &in);
+        size_t r,c,full;
     };
-
-ostream &operator<<(ostream &out,const cmatrix &in);
 
 
 #endif

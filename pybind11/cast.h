@@ -17,6 +17,21 @@
 #include <limits>
 
 NAMESPACE_BEGIN(pybind11)
+
+/// Thin wrapper type used to treat certain data types as opaque (e.g. STL vectors, etc.)
+template <typename Type> class opaque {
+public:
+    template <typename... Args> opaque(Args&&... args) : value(std::forward<Args>(args)...) { }
+    operator Type&() { return value; }
+    operator const Type&() const { return value; }
+    operator Type*() { return &value; }
+    operator const Type*() const { return &value; }
+    Type* operator->() { return &value; }
+    const Type* operator->() const { return &value; }
+private:
+    Type value;
+};
+
 NAMESPACE_BEGIN(detail)
 
 /// Additional type information which does not fit into the PyTypeObject
@@ -34,12 +49,13 @@ PYBIND11_NOINLINE inline internals &get_internals() {
     if (internals_ptr)
         return *internals_ptr;
     handle builtins(PyEval_GetBuiltins());
-    capsule caps(builtins["__pybind11__"]);
+    const char *id = PYBIND11_INTERNALS_ID;
+    capsule caps(builtins[id]);
     if (caps.check()) {
         internals_ptr = caps;
     } else {
         internals_ptr = new internals();
-        builtins["__pybind11__"] = capsule(internals_ptr);
+        builtins[id] = capsule(internals_ptr);
     }
     return *internals_ptr;
 }
@@ -181,6 +197,12 @@ protected:
     object temp;
 };
 
+/* Determine suitable casting operator */
+template <typename T>
+using cast_op_type = typename std::conditional<std::is_pointer<T>::value,
+    typename std::add_pointer<typename intrinsic_type<T>::type>::type,
+    typename std::add_lvalue_reference<typename intrinsic_type<T>::type>::type>::type;
+
 /// Generic type caster for objects stored on the heap
 template <typename type, typename Enable = void> class type_caster : public type_caster_generic {
 public:
@@ -198,12 +220,14 @@ public:
         return type_caster_generic::cast(src, policy, parent, &typeid(type), &copy_constructor);
     }
 
+    template <typename T> using cast_op_type = pybind11::detail::cast_op_type<T>;
+
     operator type*() { return (type *) value; }
     operator type&() { return *((type *) value); }
 protected:
     template <typename T = type, typename std::enable_if<detail::is_copy_constructible<T>::value, int>::type = 0>
     static void *copy_constructor(const void *arg) {
-        return new type(*((const type *) arg));
+        return (void *) new type(*((const type *) arg));
     }
     template <typename T = type, typename std::enable_if<!detail::is_copy_constructible<T>::value, int>::type = 0>
     static void *copy_constructor(const void *) { return nullptr; }
@@ -218,7 +242,8 @@ protected:
             return cast(*src, policy, parent); \
         } \
         operator type*() { return &value; } \
-        operator type&() { return value; }
+        operator type&() { return value; } \
+        template <typename _T> using cast_op_type = pybind11::detail::cast_op_type<_T>;
 
 #define PYBIND11_DECLARE_HOLDER_TYPE(type, holder_type) \
     namespace pybind11 { namespace detail { \
@@ -294,6 +319,7 @@ public:
     operator T*() { return &value; }
     operator T&() { return value; }
 
+    template <typename T2> using cast_op_type = pybind11::detail::cast_op_type<T2>;
 protected:
     T value;
 };
@@ -307,7 +333,35 @@ public:
     PYBIND11_TYPE_CASTER(void_type, _("NoneType"));
 };
 
-template <> class type_caster<void> : public type_caster<void_type> { };
+template <> class type_caster<void> : public type_caster<void_type> {
+public:
+    using type_caster<void_type>::cast;
+
+    bool load(handle h, bool) {
+        if (h.ptr() == Py_None) {
+            value = nullptr;
+            return true;
+        }
+        capsule c(h, true);
+        if (!c.check())
+            return false;
+        value = (void *) c;
+        return true;
+    }
+
+    static handle cast(void *ptr, return_value_policy /* policy */, handle /* parent */) {
+        if (ptr)
+            return capsule(ptr).release();
+        else
+            return handle(Py_None).inc_ref();
+    }
+
+    template <typename T> using cast_op_type = void*&;
+    operator void *&() { return value; }
+private:
+    void *value = nullptr;
+};
+
 template <> class type_caster<std::nullptr_t> : public type_caster<void_type> { };
 
 template <> class type_caster<bool> {
@@ -338,6 +392,7 @@ public:
         int err = PYBIND11_BYTES_AS_STRING_AND_SIZE(load_src.ptr(), &buffer, &length);
         if (err == -1) { PyErr_Clear(); return false; }  // TypeError
         value = std::string(buffer, length);
+        success = true;
         return true;
     }
 
@@ -346,25 +401,70 @@ public:
     }
 
     PYBIND11_TYPE_CASTER(std::string, _(PYBIND11_STRING_NAME));
+protected:
+    bool success = false;
 };
 
-template <> class type_caster<char> {
+template <typename type> class type_caster<std::unique_ptr<type>> {
+public:
+    static handle cast(std::unique_ptr<type> &&src, return_value_policy policy, handle parent) {
+        handle result = type_caster<type>::cast(src.get(), policy, parent);
+        if (result)
+            src.release();
+        return result;
+    }
+    static PYBIND11_DESCR name() { return type_caster<type>::name(); }
+};
+
+template <> class type_caster<std::wstring> {
 public:
     bool load(handle src, bool) {
         object temp;
         handle load_src = src;
-        if (PyUnicode_Check(load_src.ptr())) {
-            temp = object(PyUnicode_AsUTF8String(load_src.ptr()), false);
-            if (!temp) { PyErr_Clear(); return false; }  // UnicodeEncodeError
+        if (!PyUnicode_Check(load_src.ptr())) {
+            temp = object(PyUnicode_FromObject(load_src.ptr()), false);
+            if (!temp) { PyErr_Clear(); return false; }
             load_src = temp;
         }
-        const char *ptr = PYBIND11_BYTES_AS_STRING(load_src.ptr());
-        if (!ptr) { PyErr_Clear(); return false; }  // TypeError
-        value = std::string(ptr);
+        wchar_t *buffer = nullptr;
+        ssize_t length = -1;
+#if PY_MAJOR_VERSION >= 3
+        buffer = PyUnicode_AsWideCharString(load_src.ptr(), &length);
+#else
+        temp = object(
+            sizeof(wchar_t) == sizeof(short)
+                ? PyUnicode_AsUTF16String(load_src.ptr())
+                : PyUnicode_AsUTF32String(load_src.ptr()), false);
+        if (temp) {
+            int err = PYBIND11_BYTES_AS_STRING_AND_SIZE(temp.ptr(), (char **) &buffer, &length);
+            if (err == -1) { buffer = nullptr; }  // TypeError
+            length = length / sizeof(wchar_t) - 1; ++buffer; // Skip BOM
+        }
+#endif
+        if (!buffer) { PyErr_Clear(); return false; }
+        value = std::wstring(buffer, length);
+        success = true;
         return true;
     }
 
+    static handle cast(const std::wstring &src, return_value_policy /* policy */, handle /* parent */) {
+        return PyUnicode_FromWideChar(src.c_str(), src.length());
+    }
+
+    PYBIND11_TYPE_CASTER(std::wstring, _(PYBIND11_STRING_NAME));
+protected:
+    bool success = false;
+};
+
+template <> class type_caster<char> : public type_caster<std::string> {
+public:
+    bool load(handle src, bool convert) {
+        if (src.ptr() == Py_None) { return true; }
+        return type_caster<std::string>::load(src, convert);
+    }
+
     static handle cast(const char *src, return_value_policy /* policy */, handle /* parent */) {
+        if (src == nullptr) return handle(Py_None).inc_ref();
         return PyUnicode_FromString(src);
     }
 
@@ -373,12 +473,33 @@ public:
         return PyUnicode_DecodeLatin1(str, 1, nullptr);
     }
 
-    operator char*() { return (char *) value.c_str(); }
-    operator char() { if (value.length() > 0) return value[0]; else return '\0'; }
+    operator char*() { return success ? (char *) value.c_str() : nullptr; }
+    operator char&() { return value[0]; }
 
     static PYBIND11_DESCR name() { return type_descr(_(PYBIND11_STRING_NAME)); }
-protected:
-    std::string value;
+};
+
+template <> class type_caster<wchar_t> : public type_caster<std::wstring> {
+public:
+    bool load(handle src, bool convert) {
+        if (src.ptr() == Py_None) { return true; }
+        return type_caster<std::wstring>::load(src, convert);
+    }
+
+    static handle cast(const wchar_t *src, return_value_policy /* policy */, handle /* parent */) {
+        if (src == nullptr) return handle(Py_None).inc_ref();
+        return PyUnicode_FromWideChar(src, wcslen(src));
+    }
+
+    static handle cast(wchar_t src, return_value_policy /* policy */, handle /* parent */) {
+        wchar_t wstr[2] = { src, L'\0' };
+        return PyUnicode_FromWideChar(wstr, 1);
+    }
+
+    operator wchar_t*() { return success ? (wchar_t *) value.c_str() : nullptr; }
+    operator wchar_t&() { return value[0]; }
+
+    static PYBIND11_DESCR name() { return type_descr(_(PYBIND11_STRING_NAME)); }
 };
 
 template <typename T1, typename T2> class type_caster<std::pair<T1, T2>> {
@@ -408,8 +529,11 @@ public:
             _(", ") + type_caster<typename intrinsic_type<T2>::type>::name() + _(")"));
     }
 
+    template <typename T> using cast_op_type = type;
+
     operator type() {
-        return type(first, second);
+        return type(first .operator typename type_caster<typename intrinsic_type<T1>::type>::template cast_op_type<T1>(),
+                    second.operator typename type_caster<typename intrinsic_type<T2>::type>::template cast_op_type<T2>());
     }
 protected:
     type_caster<typename intrinsic_type<T1>::type> first;
@@ -445,17 +569,21 @@ public:
         return void_type();
     }
 
+    template <typename T> using cast_op_type = type;
+
     operator type() {
         return cast(typename make_index_sequence<sizeof...(Tuple)>::type());
     }
 
 protected:
     template <typename ReturnValue, typename Func, size_t ... Index> ReturnValue call(Func &&f, index_sequence<Index...>) {
-        return f((Tuple) std::get<Index>(value)...);
+        return f(std::get<Index>(value)
+            .operator typename type_caster<typename intrinsic_type<Tuple>::type>::template cast_op_type<Tuple>()...);
     }
 
     template <size_t ... Index> type cast(index_sequence<Index...>) {
-        return type((Tuple) std::get<Index>(value)...);
+        return type(std::get<Index>(value)
+            .operator typename type_caster<typename intrinsic_type<Tuple>::type>::template cast_op_type<Tuple>()...);
     }
 
     template <size_t ... Indices> bool load(handle src, bool convert, index_sequence<Indices...>) {
@@ -500,12 +628,14 @@ public:
     using type_caster<type>::copy_constructor;
 
     bool load(handle src, bool convert) {
-        if (!src || !typeinfo)
+        if (!src || !typeinfo) {
             return false;
-
-        if (PyType_IsSubtype(Py_TYPE(src.ptr()), typeinfo->type)) {
+        } else if (src.ptr() == Py_None) {
+            value = nullptr;
+            return true;
+        } else if (PyType_IsSubtype(Py_TYPE(src.ptr()), typeinfo->type)) {
             auto inst = (instance<type, holder_type> *) src.ptr();
-            value = inst->value;
+            value = (void *) inst->value;
             holder = inst->holder;
             return true;
         }
@@ -565,7 +695,7 @@ template <typename T> inline T cast(handle handle) {
     detail::type_caster<typename detail::intrinsic_type<T>::type> conv;
     if (!conv.load(handle, true))
         throw cast_error("Unable to cast Python object to C++ type");
-    return conv;
+    return (T) conv;
 }
 
 template <typename T> inline object cast(const T &value, return_value_policy policy = return_value_policy::automatic, handle parent = handle()) {
