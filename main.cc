@@ -20,4 +20,7 @@ int main(){
     cout<<"d*3.0\n"<<d*3.<<endl;
 
     cout<<"3*d\n"<<3*d<<endl;
+
+    d[1][2]=3.14;
+    cout<<"d[1][2]=3.14\n"<<d<<endl;
     }

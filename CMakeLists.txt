@@ -10,9 +10,11 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.h ${PROJECT_SOURCE_DIR}/pybind
 
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
 
+set(SRC ${PROJECT_SOURCE_DIR}/src)
+
 # Build library ################################
 find_package(PythonLibs)
-add_library(cnumpy SHARED ${PROJECT_SOURCE_DIR}/src/cnumpy.cc)
+add_library(cnumpy SHARED ${SRC}/cmatrix.cc ${SRC}/cvector.cc)
 target_include_directories(cnumpy PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(cnumpy ${PYTHON_LIBRARIES})
 
