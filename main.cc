@@ -1,3 +1,12 @@
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+//
+// Simple numpy like example with pybind11. 
+// This is a main c++11 application, there is an equivalent 
+// version for python
+// Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+//
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 #include "cnumpy.h"
 
 int main(){

@@ -1,3 +1,11 @@
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+//
+// Simple numpy like example with pybind11. 
+// This is a c++11 header for the cmatrix class.
+// Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+//
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 #ifndef CMATRIX_H
 #define CMATRIX_H
 
@@ -31,8 +39,8 @@ class cmatrix{
         cmatrix &operator=(const cmatrix &);
         cmatrix &operator=(cmatrix &&);
 
-        cvector begin() const;
-        cvector end() const;
+        inline cvector begin() const;
+        inline cvector end() const;
 
         friend ostream &operator<<(ostream &out,const cmatrix &in);
         

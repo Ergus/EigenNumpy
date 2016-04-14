@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+#..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+#
+# Simple numpy like example with pybind11. 
+# This is a python main application, there is an equivalent 
+# version for c++ 11
+# Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+#
+#..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 import libcnumpy as my
 import numpy as np
 
@@ -39,3 +48,21 @@ print("f=np.array(d) (Copy to numpy)\n",f)
 
 
 print("d[1:-1:2,1:-1:2]\n",d[1:-1:2,1:-1:2])
+
+
+# Test cvector
+
+a=my.cvector(8,"r")
+print("a=my.cvector(8,\"r\")\n",a)
+
+b=my.cvector(a)
+print("b=my.cvector(a)\n",b)
+
+b=my.cvector(a,True)
+print("b=my.cvector(a,True)\n",b)
+
+print("d[1:2,:]\n",d[1:2,:])
+
+h=my.cmatrix(d[1:2,:])
+print("h=cmatrix(d[1:2,:])\n",h)
+

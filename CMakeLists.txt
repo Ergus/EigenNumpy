@@ -1,3 +1,10 @@
+#..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+#
+# Simple numpy like example with pybind11. 
+# Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+#
+#..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 cmake_minimum_required (VERSION 3.4)
 
 project (cnumpy CXX)
@@ -14,7 +21,7 @@ set(SRC ${PROJECT_SOURCE_DIR}/src)
 
 # Build library ################################
 find_package(PythonLibs)
-add_library(cnumpy SHARED ${SRC}/cmatrix.cc ${SRC}/cvector.cc)
+add_library(cnumpy SHARED ${SRC}/cnumpy.cc ${SRC}/cmatrix.cc ${SRC}/cvector.cc)
 target_include_directories(cnumpy PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(cnumpy ${PYTHON_LIBRARIES})
 

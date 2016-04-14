@@ -1,3 +1,11 @@
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+//
+// Simple numpy like example with pybind11. 
+// This is a c++11 header for the cvector class.
+// Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+//
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 #ifndef CVECTOR_H
 #define CVECTOR_H
 
@@ -9,7 +17,7 @@ class cvector: public cmatrix{
     public:
         cvector(size_t size, char fill='0');
         
-        cvector(size_t size, double* buff);
+        cvector(size_t size, double* buff, bool copy=false);
 
         double operator[](const int col) const;
         double &operator[](const int col);

@@ -1,10 +1,19 @@
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+//
+// Simple numpy like example with pybind11. 
+// This is a vector class for c++11, This class is exposed 
+// to python with pybind11 in the cnumpy.cc file.
+// Copyright 2016 Jimmy Aguilar Mena <spacibba@yandex.com>
+//
+//..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
+
 #include "cnumpy.h"
 
 cvector::cvector(size_t size, char fill):
     cmatrix(1,size,fill){};
         
-cvector::cvector(size_t size, double* buff):
-    cmatrix(1,size,buff){};
+cvector::cvector(size_t size, double* buff, bool copy):
+    cmatrix(1,size,buff,copy){};
 
 double cvector::operator[](const int col) const{
     if(col<c) return data[col];
@@ -31,3 +40,5 @@ ostream &operator<<(ostream &out, const cvector &in){
     out<<"]"<<endl;
     return out;
     }
+
+
