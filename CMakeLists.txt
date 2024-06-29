@@ -11,9 +11,7 @@ project (EigenNumpy CXX)
 
 find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG)
-set(CMAKE_FIND_DEBUG_MODE TRUE)
 find_package(Eigen3 REQUIRED)
-set(CMAKE_FIND_DEBUG_MODE FALSE)
 
 # pybind11 method:
 # Python method:
