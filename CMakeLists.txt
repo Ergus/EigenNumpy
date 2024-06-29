@@ -33,3 +33,10 @@ target_link_libraries(main.x cnumpy)
 # Python executable
 
 configure_file(${PROJECT_SOURCE_DIR}/main.py ${PROJECT_BINARY_DIR})
+
+# Tests
+
+add_test(NAME Test_Python COMMAND main.py)
+add_test(NAME Test_C COMMAND main.x)
+
+enable_testing()
