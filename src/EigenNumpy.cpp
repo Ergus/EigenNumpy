@@ -34,13 +34,13 @@ auto getIdx(const RowMatrix &a, const py::slice &slice)
 	return Eigen::seq(r1, r2, stepr);
 }
 
-template<typename T1, typename T2>
-auto getItem(const RowMatrix &a, const T1 &r, const T2 &c)
+template<typename T1, typename T2, typename R>
+R getItem(const RowMatrix &a, const std::pair<T1, T2> &slice)
 {
 	if constexpr (std::numeric_limits<T1>::is_integer and std::numeric_limits<T2>::is_integer)
-		return a(r, c);
+		return a(slice.first, slice.second);
 
-	return a(getIdx(a, r), getIdx(a, c));
+	return a(getIdx(a, slice.first), getIdx(a, slice.second));
 }
 
 PYBIND11_MODULE(EigenNumpy, m) {
@@ -78,10 +78,10 @@ PYBIND11_MODULE(EigenNumpy, m) {
 		}))
 	  .def("rows", &RowMatrix::rows, "Return the number of rows")
 	  .def("cols", &RowMatrix::cols, "Return the number of cols")
-      .def("__getitem1__", &getItem<int, int>)
-	  .def("__getitem2__", &getItem<py::slice, py::slice>)
-      .def("__getitem3__", &getItem<int, py::slice>)
-      .def("__getitem4__", &getItem<py::slice, int>)
+      .def("__getitem__", &getItem<int, int, double>)
+	  .def("__getitem__", &getItem<py::slice, py::slice, RowMatrix>)
+      .def("__getitem__", &getItem<int, py::slice, RowMatrix>)
+      .def("__getitem__", &getItem<py::slice, int, RowMatrix>)
 	  .def("__setitem__", [](RowMatrix &a, std::pair<int, int> idx, double v)
 		{
 			if (idx.first >= a.rows() || idx.second >=a.cols())
