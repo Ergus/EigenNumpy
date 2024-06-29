@@ -5,38 +5,26 @@
 #
 #..ooOO00OOoo....ooOO00OOoo....ooOO00OOoo....ooOO00OOoo..
 
-cmake_minimum_required (VERSION 3.4)
+cmake_minimum_required (VERSION 3.25)
 
-project (cnumpy CXX)
+project (EigenNumpy CXX)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+find_package(Python COMPONENTS Interpreter Development)
+find_package(pybind11 CONFIG)
+set(CMAKE_FIND_DEBUG_MODE TRUE)
+find_package(Eigen3 REQUIRED)
+set(CMAKE_FIND_DEBUG_MODE FALSE)
 
-include_directories(${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/pybind11)
-
-file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.h ${PROJECT_SOURCE_DIR}/pybind11/*.h)
-
-file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
-
-set(SRC ${PROJECT_SOURCE_DIR}/src)
-
-# Build library ################################
-find_package(PythonLibs)
-add_library(cnumpy SHARED ${SRC}/cnumpy.cc ${SRC}/cmatrix.cc ${SRC}/cvector.cc)
-target_include_directories(cnumpy PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(cnumpy ${PYTHON_LIBRARIES})
-
-# C executable
-
-add_executable(main.x main.cc)
-target_link_libraries(main.x cnumpy)
+# pybind11 method:
+# Python method:
+Python_add_library(EigenNumpy ${PROJECT_SOURCE_DIR}/src/EigenNumpy.cpp)
+target_link_libraries(EigenNumpy PUBLIC pybind11::headers Eigen3::Eigen)
+set_target_properties(EigenNumpy PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION ON
+    CXX_VISIBILITY_PRESET ON
+    VISIBILITY_INLINES_HIDDEN ON)
 
 # Python executable
-
 configure_file(${PROJECT_SOURCE_DIR}/main.py ${PROJECT_BINARY_DIR})
 
-# Tests
-
-add_test(NAME Test_Python COMMAND main.py)
-add_test(NAME Test_C COMMAND main.x)
-
-enable_testing()
+#enable_testing()
