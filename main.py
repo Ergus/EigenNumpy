@@ -12,7 +12,7 @@
 import EigenNumpy as enp
 import numpy as np
 
-a,b = enp.RowMatrix(5,6), enp.RowMatrix(6,7),
+a,b = enp.RowMatrix.random(5,6), enp.RowMatrix.random(6,7),
 
 print("random a:\n",a)
 print("random b:\n",b)
@@ -24,45 +24,27 @@ b = a
 print("b=a:\n",b)
 
 d = enp.RowMatrix(a)
-print("d=cmatrix(a):\n",d)
+print("d=RowMatrix(a):\n",d)
 
-# print("d[1,2]: ",d[1,2])
+print("d[1,2]: ", d[1,2])
 
-# print("d*3.0\n",d*3.0)
+print("d*3.0\n",d*3.0)
 
-# print("3*d\n",3*d)
+print("3*d\n",3.0 * d)
 
-# print("=== Test Numpy ===\n")
+print("=== Test Numpy ===\n")
 
-# npa=np.random.sample((3,4))
+npa = np.random.sample((3,4))
 
-# print("Numpy array npa=np.random.sample((3,4)) (random numpy array)\n",npa)
+print("Numpy array npa=np.random.sample((3,4)) (random numpy array)\n",npa)
 
-# e=my.cmatrix(npa)
+e = enp.RowMatrix(npa)
 
-# print("\ne=my.cmatrix(npa) (copy from numpy array copy=False)\n",e)
+print("\ne=my.cmatrix(npa) (copy from numpy array copy=False)\n",e)
 
-# f=np.array(d)
+f=np.array(d)
 
-# print("f=np.array(d) (Copy to numpy)\n",f)
-
-
-# print("d[1:-1:2,1:-1:2]\n",d[1:-1:2,1:-1:2])
+print("f=np.array(d) (Copy to numpy)\n",f)
 
 
-# # Test cvector
-
-# a=my.cvector(8,"r")
-# print("a=my.cvector(8,\"r\")\n",a)
-
-# b=my.cvector(a)
-# print("b=my.cvector(a)\n",b)
-
-# b=my.cvector(a,True)
-# print("b=my.cvector(a,True)\n",b)
-
-# print("d[1:2,:]\n",d[1:2,:])
-
-# h=my.cmatrix(d[1:2,:])
-# print("h=cmatrix(d[1:2,:])\n",h)
-
+print("d[1:-1:2,1:-1:2]\n", d[1:-1:2, 1:-1:2])
