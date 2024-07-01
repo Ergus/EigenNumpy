@@ -49,8 +49,12 @@ class TestStringMethods(unittest.TestCase):
     def test_bracket_range(self):
         n = np.arange(0, 16).reshape(4, 4).astype(np.double)
         v = enp.RowMatrix(n)
-        self.assertTrue((v[0, :] == n[0, :]).all())
-        self.assertTrue((v[1, 1:3] == n[1, 1:3]).all())
+        self.assertTrue((v[0, :] == n[0, :]).all())         # Open full range
+        self.assertTrue((v[1, 1:4] == n[1, 1:4]).all())     # Subrange
+        self.assertTrue((v[1, ::2] == n[1, ::2]).all())     # Jump range
+        self.assertTrue((v[1, 0:4:2] == n[1, 0:4:2]).all())     # Subrange Jump
+        self.assertTrue((v[1, ::-1] == n[1, ::-1]).all())   # Inverse range
+        self.assertTrue((v[1, ::-2] == n[1, ::-2]).all())   # Inverse range jump
 
     def test_fromNumpy(self):
         n = np.random.rand(3, 4)

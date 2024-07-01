@@ -36,7 +36,7 @@ auto getIdx(size_t size, const py::slice &slice)
 	if (!slice.compute(size, &r1, &r2, &stepr, &rows))
 		throw py::error_already_set();
 
-	return Eigen::seq(r1, r2 - 1, stepr);
+	return Eigen::seq(r1, r2 - stepr, stepr);
 }
 
 template<typename T1, typename T2, typename R>
