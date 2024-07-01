@@ -17,10 +17,7 @@ find_package(Eigen3 REQUIRED)
 # Python method:
 Python_add_library(EigenNumpy ${PROJECT_SOURCE_DIR}/src/EigenNumpy.cpp)
 target_link_libraries(EigenNumpy PUBLIC pybind11::headers Eigen3::Eigen)
-set_target_properties(EigenNumpy PROPERTIES
-    INTERPROCEDURAL_OPTIMIZATION ON
-    CXX_VISIBILITY_PRESET ON
-    VISIBILITY_INLINES_HIDDEN ON)
+set_target_properties(EigenNumpy PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
 
 # Python executable
 configure_file(${PROJECT_SOURCE_DIR}/test_EigenNumpy.py ${PROJECT_BINARY_DIR})
