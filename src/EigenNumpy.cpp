@@ -48,12 +48,6 @@ R getItem(const RowMatrix &a, const std::pair<T1, T2> &slice)
 	return a(getIdx(a.rows(), slice.first), getIdx(a.cols(), slice.second));
 }
 
-template<typename T1, typename T2>
-RowMatrix mult(const T1 &a, T2 &b)
-{
-	return a * b;
-}
-
 PYBIND11_MODULE(EigenNumpy, m) {
 
 	m.doc() = "EigenNumpy example plugin";
@@ -106,7 +100,6 @@ PYBIND11_MODULE(EigenNumpy, m) {
 				throw py::index_error();
 			a(idx.first, idx.second) = v;
 		})
-      .def(py::self == py::self)
 	  .def("__repr__", [](const RowMatrix &a)
 		{
 			std::stringstream out;
@@ -121,8 +114,9 @@ PYBIND11_MODULE(EigenNumpy, m) {
 							   { sizeof(double) * a.cols(), sizeof(double) }
 							   );
 		})
-	  .def("__mul__", &mult<const RowMatrix &, const RowMatrix &>, py::is_operator())
-      .def("__mul__", &mult<const RowMatrix &, double>, py::is_operator())
-      .def("__rmul__", &mult<const RowMatrix &, double>, py::is_operator())
+	  .def(py::self == py::self)
+	  .def_cast(py::self * py::self)
+	  .def_cast(float() * py::self)
+	  .def_cast(py::self * float())
 	;
 }
